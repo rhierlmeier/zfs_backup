@@ -1,13 +1,17 @@
-#!/usr/bin/env python
-
-"""zfs_backup.py: Create backups like rsnapshot with zfs."""
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# =============================================================================
+# Created By  : Richard Hierlmeier
+# =============================================================================
+"""zfs_backup.py: Create backups like rsnapshot with zfs.
 __author__      = "Richard Hierlmeier"
 __copyright__   = "Copyright 2024, Richard Hierlmeier"
 __license__ = "GPL-3.0"
 __status__ = "Beta"
 """
-
+# =============================================================================
+# Imports
+# =============================================================================
 import logging
 import re
 import sys
@@ -17,9 +21,16 @@ from typing import List
 
 import yaml
 import subprocess
+import filelock
 
+# =============================================================================
+# Constants
+# =============================================================================
+
+# Regex to parse a datetime in format YYYY-MM-DD HH:mm:ss
 DATE_TIME_PATTERN = "\\d{4}-[0-1]\\d-[0-3]\\dT[0-2]\\d:[0-6]\\d:[0-6]\\d"
 
+# Format string for converting a datetime object into a string
 DATE_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 
@@ -27,7 +38,7 @@ class Config:
 
     def __init__(self, pool: str, backup_pool: str, datasets: List[str], num_backups_daily: int,
                  num_backups_weekly: int,
-                 num_backups_monthly: int, nums_backup_yearly: int, _log_file: str):
+                 num_backups_monthly: int, nums_backup_yearly: int, _log_file: str, _run_file: str):
         self.pool = pool
         self.backup_pool = backup_pool
         self.datasets = datasets
@@ -36,6 +47,7 @@ class Config:
         self.num_backups_monthly = num_backups_monthly
         self.nums_backups_yearly = nums_backup_yearly
         self.log_file = _log_file
+        self.run_file = _run_file
 
     def get_num_backups(self, _backup_type: str):
         if _backup_type == "daily":
@@ -118,8 +130,8 @@ class Snapshot:
 
 
 def read_config(_config_file):
-    with open(_config_file) as f:
-        _c = yaml.safe_load(f)
+    with open(_config_file) as _f:
+        _c = yaml.safe_load(_f)
 
     if _c['dataPool'] is None:
         logging.error("Missing dataPool in " + config_file)
@@ -158,6 +170,11 @@ def read_config(_config_file):
         exit(1)
     _logFile = _c['logFile']
 
+    if _c['runFile'] is None:
+        logging.error("Missing runFile in " + config_file)
+        exit(1)
+    _runFile = _c['runFile']
+
     return Config(pool=_c['dataPool'],
                   backup_pool=_c['backupPool'],
                   datasets=_c['datasets'],
@@ -165,7 +182,8 @@ def read_config(_config_file):
                   num_backups_weekly=_weekly,
                   num_backups_monthly=_monthly,
                   nums_backup_yearly=_yearly,
-                  _log_file=_logFile)
+                  _log_file=_logFile,
+                  _run_file=_runFile)
 
 
 def usage():
@@ -330,9 +348,21 @@ if __name__ == '__main__':
         logging.basicConfig(level=log_level, filename=config.log_file,
                             format='%(asctime)s | %(levelname)s | %(message)s')
 
-    logging.info("Backup started --------------------------------")
+    _pid = os.getpid()
+    _lock = filelock.FileLock(config.run_file)
 
-    for dataset in config.datasets:
-        backup(config, dataset, backup_type)
+    with _lock.acquire():
+        with open(config.run_file, "w") as _f:
+            _f.write("{pid}\n".format(pid=_pid))
 
-    logging.info("Backup finished --------------------------------")
+        logging.info("Backup started (pid=%s, backup_type=%s) --------------------------------", _pid, backup_type)
+
+        for dataset in config.datasets:
+            backup(config, dataset, backup_type)
+
+        with open(config.run_file, "w") as _f:
+            _f.write("")
+
+        logging.info("Backup finished --------------------------------")
+
+

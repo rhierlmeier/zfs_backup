@@ -1,11 +1,25 @@
+
+# Name of the ZFS to that is backed up
 dataPool: rpool
+
+# Name of the ZPool where the backups are stored
 backupPool: backup
+
+# List of ZFS datasets that are backed up
 datasets:
   - test
 
+# Keep the daily backups for 7 days
 daily: 7
+# Keep the weekly backups for 4 weeks
 weekly: 4
+# Keep the monthly backups for 12 months
 monthly: 12
+# Keep the yearly backups for 10 years
 yearly: 10
 
-logFile: /home/rh/test/zfs_backup.log
+# Name of the Log-File
+logFile: /var/log/zfs_backup.log
+
+# Name of the run file (indicates that zfs_backup is running)
+runFile: /var/lock/zfs_backup.lck
