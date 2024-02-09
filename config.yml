@@ -5,6 +5,8 @@ dataPool: rpool
 # Name of the ZPool where the backups are stored
 backupPool: backup
 
+backupPrefix:
+
 # List of ZFS datasets that are backed up
 datasets:
   - test
@@ -23,3 +25,5 @@ logFile: /var/log/zfs_backup.log
 
 # Name of the run file (indicates that zfs_backup is running)
 runFile: /var/lock/zfs_backup.lck
+
+mailto: news@hierlmeier.de
